@@ -43,13 +43,13 @@ func main() {
 	}
 
 	// determine if running in a TTY
-	ttyFlag := "-it"
-	if !isTTY() {
-		ttyFlag = ""
+	ttyFlag := ""
+	if isTTY() {
+		ttyFlag = "-it"
 	}
 
 	// create volume directory if they don't exist
-	if err := os.MkdirAll(volumeDir, 0755); err != nil {
+	if err := os.MkdirAll(volumeDir, 0777); err != nil {
 		fmt.Println("Error createing volume directory:", err)
 		return
 	}
@@ -58,16 +58,16 @@ func main() {
 	volumeParams := fmt.Sprintf("-v \"%s/%s://dxclient/store\":Z", getCurrentDirectory(), volumeDir)
 
 	// compose docker command
-	dockerCmd := fmt.Sprintf("run -e VOLUME_DIR=\"%s\" -u %d %s %s --network=host --platform linux/amd64 --name dxclient --rm %s:%s ./bin/dxclient %s", volumeDir, os.Getuid(), ttyFlag, volumeParams, imageName, imageTag, strings.Join(args, " "))
+	dockerCmd := fmt.Sprintf("%s run -e VOLUME_DIR=\"%s\" -u %d %s %s --network=host --platform linux/amd64 --name dxclient --rm %s:%s ./bin/dxclient %s", containerRuntime, volumeDir, os.Getuid(), ttyFlag, volumeParams, imageName, imageTag, strings.Join(args, " "))
 	fmt.Println(dockerCmd)
 
-	out, err := exec.Command(containerRuntime, dockerCmd).CombinedOutput()
+	out, err := exec.Command("sh", "-c", dockerCmd).CombinedOutput()
+
+	fmt.Println(string(out))
 	if err != nil {
 		fmt.Println("Error executing Docker command: ", err)
 		return
 	}
-
-	fmt.Println(string(out))
 	cleanupFiles(args, volumeDir)
 }
 
