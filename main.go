@@ -5,12 +5,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
 func main() {
-	imageName := "dxclient"
-	imageTag := "local"
+	imageName := "hcl/dx/client"
+	imageTag := "95_CF223_20240905-0159"
 
 	// parse command-line arguments
 	args := os.Args[1:]
@@ -61,14 +62,33 @@ func main() {
 	dockerCmd := fmt.Sprintf("%s run -e VOLUME_DIR=\"%s\" -u %d %s %s --network=host --platform linux/amd64 --name dxclient --rm %s:%s ./bin/dxclient %s", containerRuntime, volumeDir, os.Getuid(), ttyFlag, volumeParams, imageName, imageTag, strings.Join(args, " "))
 	fmt.Println(dockerCmd)
 
-	out, err := exec.Command("sh", "-c", dockerCmd).CombinedOutput()
+	// Execute the command based on the OS
+	executeCommand(dockerCmd)
 
+	cleanupFiles(args, volumeDir)
+}
+
+func executeCommand(dockerCmd string) {
+	var cmd *exec.Cmd
+
+	// Check the OS type
+	switch runtime.GOOS {
+	case "windows":
+		// Use cmd.exe on Windows
+		cmd = exec.Command("cmd.exe", "/C", dockerCmd)
+	default:
+		// Use sh on Unix-like systems (macOS, Linux)
+		cmd = exec.Command("sh", "-c", dockerCmd)
+	}
+
+	// Run the command and capture output
+	out, err := cmd.CombinedOutput()
+
+	// Print the output and handle errors
 	fmt.Println(string(out))
 	if err != nil {
 		fmt.Println("Error executing Docker command: ", err)
-		return
 	}
-	cleanupFiles(args, volumeDir)
 }
 
 // return error if "docker" command not found
